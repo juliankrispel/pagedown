@@ -89,7 +89,7 @@
     // - getConverter() returns the markdown converter object that was passed to the constructor
     // - run() actually starts the editor; should be called after all necessary plugins are registered. Calling this more than once is a no-op.
     // - refreshPreview() forces the preview to be updated. This method is only available after run() was called.
-    Markdown.Editor = function (markdownConverter, idPostfix, options) {
+    Markdown.Editor = function ( elInput, elButtons, elPreview, markdownConverter, buttons, idPostfix, options) {
         
         options = options || {};
 
@@ -117,38 +117,40 @@
         var that = this,
             panels;
 
-        this.run = function () {
-            if (panels)
-                return; // already initialized
+        if (panels)
+            return; // already initialized
 
-            panels = new PanelCollection(idPostfix);
-            var commandManager = new CommandManager(hooks, getString);
-            var previewManager;
-            if(markdownConverter)
-                previewManager = new PreviewManager(markdownConverter, panels, function () { hooks.onPreviewRefresh(); });
-            var undoManager, uiManager;
+        panels = {};
+        panels.buttonBar = elButtons;
+        panels.preview = elPreview;
+        panels.input = elInput;
 
-            if (!/\?noundo/.test(doc.location.href)) {
-                undoManager = new UndoManager(function () {
-                    if(previewManager) previewManager.refresh();
-                    if (uiManager) // not available on the first call
-                        uiManager.setUndoRedoButtonStates();
-                }, panels);
-                this.textOperation = function (f) {
-                    undoManager.setCommandMode();
-                    f();
-                    that.refreshPreview();
-                }
+        var commandManager = new CommandManager(hooks, getString);
+        var previewManager;
+        if(markdownConverter)
+            previewManager = new PreviewManager(markdownConverter, panels, function () { hooks.onPreviewRefresh(); });
+        var undoManager, uiManager;
+
+        if (!/\?noundo/.test(doc.location.href)) {
+            undoManager = new UndoManager(function () {
+                if(previewManager) previewManager.refresh();
+                if (uiManager) // not available on the first call
+                    uiManager.setUndoRedoButtonStates();
+            }, panels);
+            this.textOperation = function (f) {
+                undoManager.setCommandMode();
+                f();
+                that.refreshPreview();
             }
+        }
 
-            uiManager = new UIManager(idPostfix, panels, undoManager, previewManager, commandManager, options.helpButton, getString);
-            uiManager.setUndoRedoButtonStates();
+        uiManager = new UIManager(idPostfix, panels, undoManager, previewManager, commandManager, options.helpButton, getString);
+        uiManager.setUndoRedoButtonStates();
 
-            if(previewManager){
-                var forceRefresh = that.refreshPreview = function () { previewManager.refresh(true); };
-                forceRefresh();
-            }
-        };
+        if(previewManager){
+            var forceRefresh = that.refreshPreview = function () { previewManager.refresh(true); };
+            forceRefresh();
+        }
 
     }
 
@@ -280,30 +282,6 @@
 
             this.after = this.after.replace(new re(regexText, ""), replacementText);
         }
-    };
-
-    // end of Chunks
-
-    // A collection of the important regions on the page.
-    // Cached so we don't have to keep traversing the DOM.
-    // Also holds ieCachedRange and ieCachedScrollTop, where necessary; working around
-    // this issue:
-    // Internet explorer has problems with CSS sprite buttons that use HTML
-    // lists.  When you click on the background image "button", IE will
-    // select the non-existent link text and discard the selection in the
-    // textarea.  The solution to this is to cache the textarea selection
-    // on the button's mousedown event and set a flag.  In the part of the
-    // code where we need to grab the selection, we check for the flag
-    // and, if it's set, use the cached area instead of querying the
-    // textarea.
-    //
-    // This ONLY affects Internet Explorer (tested on versions 6, 7
-    // and 8) and ONLY on button clicks.  Keyboard shortcuts work
-    // normally since the focus never leaves the textarea.
-    function PanelCollection(postfix) {
-        this.buttonBar = doc.getElementById("wmd-button-bar" + postfix);
-        this.preview = doc.getElementById("wmd-preview" + postfix);
-        this.input = doc.getElementById("wmd-input" + postfix);
     };
 
     // Returns true if the DOM element is visible, false if it's hidden.
@@ -2212,5 +2190,15 @@
         chunk.skipLines(2, 1, true);
     }
 
+    $.fn.pagedown = function(elPreview, markdownConverter, idPostfix, help){
+        $(this).each(function(){
+            var buttons = $('<div/>');
+            $(this).before(buttons);
+            new Markdown.Editor(this, buttons[0], elPreview, markdownConverter, buttons, idPostfix, help);
+        });
+    }
 
+    $(function(){
+        $('[data-toggle="pagedown"]').pagedown();
+    });
 })();
