@@ -2192,7 +2192,7 @@
 
     $.fn.pagedown = function(elPreview, markdownConverter, idPostfix, help){
         $(this).each(function(){
-            var buttons = $('<div class="button-bar"/>');
+            var buttons = $('<div class="pagedown-button-bar"/>');
             $(this).before(buttons);
             new Markdown.Editor(this, buttons[0], elPreview, markdownConverter, buttons, idPostfix, help);
         });
